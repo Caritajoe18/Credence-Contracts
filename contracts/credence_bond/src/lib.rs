@@ -47,32 +47,34 @@ impl CredenceBond {
 
     /// Register an authorized attester (only admin can call).
     pub fn register_attester(e: Env, attester: Address) {
-        let admin: Address = e.storage()
+        let admin: Address = e
+            .storage()
             .instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("not initialized"));
         admin.require_auth();
-        
-        e.storage().instance().set(&DataKey::Attester(attester.clone()), &true);
-        e.events().publish(
-            (Symbol::new(&e, "attester_registered"),),
-            attester
-        );
+
+        e.storage()
+            .instance()
+            .set(&DataKey::Attester(attester.clone()), &true);
+        e.events()
+            .publish((Symbol::new(&e, "attester_registered"),), attester);
     }
 
     /// Remove an attester's authorization (only admin can call).
     pub fn unregister_attester(e: Env, attester: Address) {
-        let admin: Address = e.storage()
+        let admin: Address = e
+            .storage()
             .instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("not initialized"));
         admin.require_auth();
-        
-        e.storage().instance().remove(&DataKey::Attester(attester.clone()));
-        e.events().publish(
-            (Symbol::new(&e, "attester_unregistered"),),
-            attester
-        );
+
+        e.storage()
+            .instance()
+            .remove(&DataKey::Attester(attester.clone()));
+        e.events()
+            .publish((Symbol::new(&e, "attester_unregistered"),), attester);
     }
 
     /// Check if an address is an authorized attester.
@@ -85,16 +87,12 @@ impl CredenceBond {
 
     /// Create or top-up a bond for an identity. In a full implementation this would
     /// transfer USDC from the caller and store the bond.
-    pub fn create_bond(
-        e: Env,
-        identity: Address,
-        amount: i128,
-        duration: u64,
-    ) -> IdentityBond {
+    pub fn create_bond(e: Env, identity: Address, amount: i128, duration: u64) -> IdentityBond {
         let bond_start = e.ledger().timestamp();
-        
+
         // Verify the end timestamp wouldn't overflow
-        let _end_timestamp = bond_start.checked_add(duration)
+        let _end_timestamp = bond_start
+            .checked_add(duration)
             .expect("bond end timestamp would overflow");
 
         let bond = IdentityBond {
@@ -115,9 +113,7 @@ impl CredenceBond {
         e.storage()
             .instance()
             .get::<_, IdentityBond>(&DataKey::Bond)
-            .unwrap_or_else(|| {
-                panic!("no bond")
-            })
+            .unwrap_or_else(|| panic!("no bond"))
     }
 
     /// Add an attestation for a subject (only authorized attesters can call).
@@ -128,24 +124,22 @@ impl CredenceBond {
         attestation_data: String,
     ) -> Attestation {
         attester.require_auth();
-        
+
         // Verify attester is authorized
-        let is_authorized = e.storage()
+        let is_authorized = e
+            .storage()
             .instance()
             .get(&DataKey::Attester(attester.clone()))
             .unwrap_or(false);
-        
+
         if !is_authorized {
             panic!("unauthorized attester");
         }
 
         // Get and increment attestation counter
         let counter_key = DataKey::AttestationCounter;
-        let id: u64 = e.storage()
-            .instance()
-            .get(&counter_key)
-            .unwrap_or(0);
-        
+        let id: u64 = e.storage().instance().get(&counter_key).unwrap_or(0);
+
         let next_id = id.checked_add(1).expect("attestation counter overflow");
         e.storage().instance().set(&counter_key, &next_id);
 
@@ -160,11 +154,14 @@ impl CredenceBond {
         };
 
         // Store attestation
-        e.storage().instance().set(&DataKey::Attestation(id), &attestation);
+        e.storage()
+            .instance()
+            .set(&DataKey::Attestation(id), &attestation);
 
         // Add to subject's attestation list
         let subject_key = DataKey::SubjectAttestations(subject.clone());
-        let mut attestations: Vec<u64> = e.storage()
+        let mut attestations: Vec<u64> = e
+            .storage()
             .instance()
             .get(&subject_key)
             .unwrap_or(Vec::new(&e));
@@ -174,7 +171,7 @@ impl CredenceBond {
         // Emit event
         e.events().publish(
             (Symbol::new(&e, "attestation_added"), subject),
-            (id, attester, attestation_data)
+            (id, attester, attestation_data),
         );
 
         attestation
@@ -186,7 +183,8 @@ impl CredenceBond {
 
         // Get attestation
         let key = DataKey::Attestation(attestation_id);
-        let mut attestation: Attestation = e.storage()
+        let mut attestation: Attestation = e
+            .storage()
             .instance()
             .get(&key)
             .unwrap_or_else(|| panic!("attestation not found"));
@@ -207,8 +205,11 @@ impl CredenceBond {
 
         // Emit event
         e.events().publish(
-            (Symbol::new(&e, "attestation_revoked"), attestation.subject.clone()),
-            (attestation_id, attester)
+            (
+                Symbol::new(&e, "attestation_revoked"),
+                attestation.subject.clone(),
+            ),
+            (attestation_id, attester),
         );
     }
 
@@ -232,13 +233,16 @@ impl CredenceBond {
     /// Returns the updated bond with reduced bonded_amount.
     pub fn withdraw(e: Env, amount: i128) -> IdentityBond {
         let key = DataKey::Bond;
-        let mut bond = e.storage()
+        let mut bond = e
+            .storage()
             .instance()
             .get::<_, IdentityBond>(&key)
             .unwrap_or_else(|| panic!("no bond"));
 
         // Calculate available balance (bonded - slashed)
-        let available = bond.bonded_amount.checked_sub(bond.slashed_amount)
+        let available = bond
+            .bonded_amount
+            .checked_sub(bond.slashed_amount)
             .expect("slashed amount exceeds bonded amount");
 
         // Verify sufficient available balance for withdrawal
@@ -247,7 +251,9 @@ impl CredenceBond {
         }
 
         // Perform withdrawal with overflow protection
-        bond.bonded_amount = bond.bonded_amount.checked_sub(amount)
+        bond.bonded_amount = bond
+            .bonded_amount
+            .checked_sub(amount)
             .expect("withdrawal caused underflow");
 
         // Verify invariant: slashed amount should not exceed bonded amount after withdrawal
@@ -263,13 +269,16 @@ impl CredenceBond {
     /// Returns the updated bond with increased slashed_amount.
     pub fn slash(e: Env, amount: i128) -> IdentityBond {
         let key = DataKey::Bond;
-        let mut bond = e.storage()
+        let mut bond = e
+            .storage()
             .instance()
             .get::<_, IdentityBond>(&key)
             .unwrap_or_else(|| panic!("no bond"));
 
         // Calculate new slashed amount, checking for overflow
-        let new_slashed = bond.slashed_amount.checked_add(amount)
+        let new_slashed = bond
+            .slashed_amount
+            .checked_add(amount)
             .expect("slashing caused overflow");
 
         // Cap slashed amount at bonded amount
@@ -286,13 +295,16 @@ impl CredenceBond {
     /// Top up the bond with additional amount (checks for overflow)
     pub fn top_up(e: Env, amount: i128) -> IdentityBond {
         let key = DataKey::Bond;
-        let mut bond = e.storage()
+        let mut bond = e
+            .storage()
             .instance()
             .get::<_, IdentityBond>(&key)
             .unwrap_or_else(|| panic!("no bond"));
 
         // Perform top-up with overflow protection
-        bond.bonded_amount = bond.bonded_amount.checked_add(amount)
+        bond.bonded_amount = bond
+            .bonded_amount
+            .checked_add(amount)
             .expect("top-up caused overflow");
 
         e.storage().instance().set(&key, &bond);
@@ -302,17 +314,22 @@ impl CredenceBond {
     /// Extend bond duration (checks for u64 overflow on timestamps)
     pub fn extend_duration(e: Env, additional_duration: u64) -> IdentityBond {
         let key = DataKey::Bond;
-        let mut bond = e.storage()
+        let mut bond = e
+            .storage()
             .instance()
             .get::<_, IdentityBond>(&key)
             .unwrap_or_else(|| panic!("no bond"));
 
         // Perform duration extension with overflow protection
-        bond.bond_duration = bond.bond_duration.checked_add(additional_duration)
+        bond.bond_duration = bond
+            .bond_duration
+            .checked_add(additional_duration)
             .expect("duration extension caused overflow");
 
         // Also verify the end timestamp wouldn't overflow
-        let _end_timestamp = bond.bond_start.checked_add(bond.bond_duration)
+        let _end_timestamp = bond
+            .bond_start
+            .checked_add(bond.bond_duration)
             .expect("bond end timestamp would overflow");
 
         e.storage().instance().set(&key, &bond);

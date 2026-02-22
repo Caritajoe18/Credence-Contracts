@@ -1,5 +1,5 @@
 //! Arithmetic Security Tests
-//! 
+//!
 //! This module contains comprehensive security tests for arithmetic operations
 //! to verify overflow and underflow protection in the Credence Bond contract.
 //!
@@ -94,7 +94,7 @@ fn test_i128_overflow_on_massive_slashing() {
 
     // Slash near-maximum amount first
     client.slash(&(i128::MAX / 2));
-    
+
     // Current slashed_amount is now i128::MAX / 2
     // Attempt to slash more than i128::MAX / 2, which will cause overflow in checked_add
     client.slash(&(i128::MAX / 2 + 2));
@@ -112,7 +112,7 @@ fn test_i128_large_bond_operations() {
 
     let identity = Address::generate(&e);
     let large_amount = i128::MAX / 2;
-    
+
     // Create bond with large amount
     let bond = client.create_bond(&identity, &large_amount, &86400_u64);
     assert_eq!(bond.bonded_amount, large_amount);
@@ -133,7 +133,7 @@ fn test_negative_bond_amount_handling() {
     client.initialize(&admin);
 
     let identity = Address::generate(&e);
-    
+
     // Test with negative amount (technically allowed by i128, but may be business logic violation)
     // This documents current behavior
     let bond = client.create_bond(&identity, &(-1000), &86400_u64);
@@ -214,7 +214,7 @@ fn test_u64_large_duration_extension() {
 
     let identity = Address::generate(&e);
     let duration = u64::MAX / 2;
-    
+
     // Create bond with large duration
     let bond = client.create_bond(&identity, &1000, &duration);
     assert_eq!(bond.bond_duration, duration);
@@ -242,7 +242,7 @@ fn test_timestamp_boundary_conditions() {
     let identity = Address::generate(&e);
     // Create bond with safe duration
     let bond = client.create_bond(&identity, &1000, &5000);
-    
+
     assert_eq!(bond.bond_duration, 5000);
     assert!(bond.bond_start >= u64::MAX - 10000);
 }
