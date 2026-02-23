@@ -53,11 +53,7 @@ impl CredenceDelegation {
             panic!("expiry must be in the future");
         }
 
-        let key = DataKey::Delegation(
-            owner.clone(),
-            delegate.clone(),
-            delegation_type.clone(),
-        );
+        let key = DataKey::Delegation(owner.clone(), delegate.clone(), delegation_type.clone());
 
         let d = Delegation {
             owner: owner.clone(),
@@ -83,11 +79,7 @@ impl CredenceDelegation {
     ) {
         owner.require_auth();
 
-        let key = DataKey::Delegation(
-            owner.clone(),
-            delegate.clone(),
-            delegation_type.clone(),
-        );
+        let key = DataKey::Delegation(owner.clone(), delegate.clone(), delegation_type.clone());
 
         let mut d: Delegation = e
             .storage()
