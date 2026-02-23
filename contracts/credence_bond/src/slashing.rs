@@ -31,7 +31,7 @@ const KEY_SLASHED_FUNDS_POOL: &str = "slashed_funds_pool";
 /// The accumulated slashed amount (i128). Returns 0 if no bond exists.
 #[must_use]
 pub fn get_slashed_amount(e: &Env, _bond_identity: &Address) -> i128 {
-    let storage_key = Symbol::new(e, "bond");
+    let storage_key = crate::DataKey::Bond;
     e.storage()
         .instance()
         .get::<_, i128>(&storage_key)
@@ -51,9 +51,10 @@ pub fn get_slashed_amount(e: &Env, _bond_identity: &Address) -> i128 {
 /// # Panics
 /// If caller is not the stored admin address with message "not admin"
 pub fn validate_admin(e: &Env, caller: &Address) {
-    let stored_admin: Address = e.storage()
+    let stored_admin: Address = e
+        .storage()
         .instance()
-        .get(&Symbol::new(e, "admin"))
+        .get(&crate::DataKey::Admin)
         .unwrap_or_else(|| panic!("not initialized"));
     if caller != &stored_admin {
         panic!("not admin");
@@ -93,14 +94,16 @@ pub fn slash_bond(e: &Env, admin: &Address, amount: i128) -> crate::IdentityBond
     validate_admin(e, admin);
 
     // 2. Retrieve current bond state
-    let key = Symbol::new(e, "bond");
-    let mut bond = e.storage()
+    let key = crate::DataKey::Bond;
+    let mut bond = e
+        .storage()
         .instance()
         .get::<_, crate::IdentityBond>(&key)
         .unwrap_or_else(|| panic!("no bond"));
 
     // 3. Calculate new slashed amount with overflow protection
-    let new_slashed = bond.slashed_amount
+    let new_slashed = bond
+        .slashed_amount
         .checked_add(amount)
         .expect("slashing caused overflow");
 
@@ -140,13 +143,15 @@ pub fn slash_bond(e: &Env, admin: &Address, amount: i128) -> crate::IdentityBond
 pub fn unslash_bond(e: &Env, admin: &Address, amount: i128) -> crate::IdentityBond {
     validate_admin(e, admin);
 
-    let key = Symbol::new(e, "bond");
-    let mut bond = e.storage()
+    let key = crate::DataKey::Bond;
+    let mut bond = e
+        .storage()
         .instance()
         .get::<_, crate::IdentityBond>(&key)
         .unwrap_or_else(|| panic!("no bond"));
 
-    bond.slashed_amount = bond.slashed_amount
+    bond.slashed_amount = bond
+        .slashed_amount
         .checked_sub(amount)
         .expect("unslashing would reduce below 0");
 
@@ -275,7 +280,7 @@ mod tests {
         // Verify available balance calculation
         let available = get_available_balance(1000, 300);
         assert_eq!(available, 700);
-        
+
         // Fully slashed
         let available_full = get_available_balance(1000, 1000);
         assert_eq!(available_full, 0);

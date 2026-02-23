@@ -417,18 +417,18 @@ impl CredenceBond {
 
     /// Slash a portion of the bond (admin only). Reduces the bond's value as a penalty.
     /// Increases slashed_amount up to the bonded_amount (over-slash prevention).
-    /// 
+    ///
     /// # Arguments
     /// * `admin` - Address claiming admin authority (must be contract admin)
     /// * `amount` - Amount to slash (i128). Will be capped at bonded_amount.
-    /// 
+    ///
     /// # Returns
     /// Updated IdentityBond with increased slashed_amount
-    /// 
+    ///
     /// # Panics
     /// - "not admin" if caller is not the contract admin
     /// - "no bond" if no bond exists
-    /// 
+    ///
     /// # Events
     /// Emits `bond_slashed` event with (identity, slash_amount, total_slashed_amount)
     pub fn slash(e: Env, admin: Address, amount: i128) -> IdentityBond {
