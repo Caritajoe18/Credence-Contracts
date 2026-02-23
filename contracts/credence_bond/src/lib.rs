@@ -447,9 +447,13 @@ impl CredenceBond {
 
     /// Top up the bond with additional amount (checks for overflow)
     pub fn top_up(e: Env, amount: i128) -> IdentityBond {
-        // Validate the top-up amount is positive
-        if amount <= 0 {
-            panic!("top-up amount must be positive");
+        // Validate the top-up amount meets minimum requirements
+        if amount < validation::MIN_BOND_AMOUNT {
+            panic!(
+                "top-up amount below minimum required: {} (minimum: {})",
+                amount,
+                validation::MIN_BOND_AMOUNT
+            );
         }
         
         let key = DataKey::Bond;
