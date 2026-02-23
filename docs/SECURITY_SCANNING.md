@@ -32,7 +32,7 @@ Install the required tools:
 
 ```bash
 # Install cargo-audit (version pinned to match CI)
-cargo install cargo-audit --version 0.20.1 --locked
+cargo install cargo-audit --version 0.22.0 --locked
 
 # Install cargo-geiger (version pinned to match CI)
 cargo install cargo-geiger --version 0.12.0 --locked
@@ -60,6 +60,7 @@ cargo audit --deny warnings
 - Known CVEs in direct and transitive dependencies
 - Unmaintained crates
 - Yanked crate versions
+- Supports CVSS 3.x and 4.0 scoring (requires cargo-audit 0.22.0+)
 
 ### cargo-clippy: Security Lints
 
@@ -318,7 +319,7 @@ cargo audit
 
 | Tool | Current Version | Last Updated |
 |------|----------------|--------------|
-| cargo-audit | 0.20.1 | 2024-02-23 |
+| cargo-audit | 0.22.0 | 2024-02-23 |
 | cargo-geiger | 0.12.0 | 2024-02-23 |
 | clippy | stable | (follows Rust toolchain) |
 
@@ -455,6 +456,28 @@ If a vulnerability doesn't apply to your usage:
 1. Document why in `audit.toml`
 2. Add to ignore list with comment
 3. Link to issue/discussion if available
+
+### CVSS Version Errors
+
+If you see errors like "unsupported CVSS version: 4.0":
+
+```
+error parsing RUSTSEC-2026-XXXX.md: unsupported CVSS version: 4.0
+```
+
+This means your cargo-audit version is too old. The RustSec advisory database now includes CVSS 4.0 scores (introduced November 2023).
+
+**Solution:** Upgrade to cargo-audit 0.22.0 or later:
+
+```bash
+cargo install cargo-audit --version 0.22.0 --locked --force
+```
+
+**Why this happens:**
+- CVSS 4.0 was released in November 2023
+- RustSec advisories started using CVSS 4.0 in 2026
+- Older cargo-audit versions only support CVSS 3.x
+- This is a tooling compatibility issue, not a security vulnerability in your project
 
 ### CI Cache Issues
 
