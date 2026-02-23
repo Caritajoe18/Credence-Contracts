@@ -1,12 +1,17 @@
 #![no_std]
 
+mod early_exit_penalty;
+mod nonce;
+mod rolling_bond;
+mod slashing;
+mod tiered_bond;
+mod weighted_attestation;
+
+pub mod types;
+
 use soroban_sdk::{
     contract, contractimpl, contracttype, Address, Env, IntoVal, String, Symbol, Val, Vec,
 };
-
-mod early_exit_penalty;
-mod rolling_bond;
-mod tiered_bond;
 
 use soroban_sdk::token::TokenClient;
 
@@ -37,16 +42,8 @@ pub struct IdentityBond {
     pub notice_period_duration: u64,
 }
 
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Attestation {
-    pub id: u64,
-    pub attester: Address,
-    pub subject: Address,
-    pub attestation_data: String,
-    pub timestamp: u64,
-    pub revoked: bool,
-}
+// Re-export attestation type (definitions and validation in types::attestation).
+pub use types::Attestation;
 
 #[contracttype]
 pub enum DataKey {
@@ -57,6 +54,12 @@ pub enum DataKey {
     Attestation(u64),
     AttestationCounter,
     SubjectAttestations(Address),
+    /// Per-identity attestation count (updated on add/revoke).
+    SubjectAttestationCount(Address),
+    /// Per-identity nonce for replay prevention.
+    Nonce(Address),
+    /// Attester stake used for weighted attestation (set by admin or from bond).
+    AttesterStake(Address),
 }
 
 #[contract]
@@ -64,20 +67,21 @@ pub struct CredenceBond;
 
 #[contractimpl]
 impl CredenceBond {
-    /// Initialize the contract (set admin).
+    /// Initialize the contract (admin).
     pub fn initialize(e: Env, admin: Address) {
+        admin.require_auth();
         e.storage().instance().set(&DataKey::Admin, &admin);
     }
 
-    /// Set early exit penalty config (admin only). Penalty in basis points (e.g. 500 = 5%).
+    /// Set early exit penalty config. Only admin should call.
     pub fn set_early_exit_config(e: Env, admin: Address, treasury: Address, penalty_bps: u32) {
+        admin.require_auth();
         let stored_admin: Address = e
             .storage()
             .instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("not initialized"));
-        admin.require_auth();
-        if admin != stored_admin {
+        if stored_admin != admin {
             panic!("not admin");
         }
         early_exit_penalty::set_config(&e, treasury, penalty_bps);
@@ -179,6 +183,8 @@ impl CredenceBond {
         TokenClient::new(&e, &token).transfer_from(&contract, &identity, &contract, &amount);
 
         let bond_start = e.ledger().timestamp();
+
+        // Verify the end timestamp wouldn't overflow
         let _end_timestamp = bond_start
             .checked_add(duration)
             .expect("bond end timestamp would overflow");
@@ -210,48 +216,67 @@ impl CredenceBond {
     }
 
     /// Add an attestation for a subject (only authorized attesters can call).
+    /// Requires correct nonce for replay prevention; rejects duplicate (verifier, identity, data).
+    /// Weight is computed from attester stake (weighted attestation system).
+    ///
+    /// @param e Contract environment
+    /// @param attester Authorized verifier (must be registered and must pass require_auth)
+    /// @param subject Identity being attested
+    /// @param attestation_data Opaque attestation payload
+    /// @param nonce Current nonce for attester (get_nonce(attester)); incremented on success
+    /// @return The created Attestation (id, verifier, identity, timestamp, weight, data, revoked)
     pub fn add_attestation(
         e: Env,
         attester: Address,
         subject: Address,
         attestation_data: String,
+        nonce: u64,
     ) -> Attestation {
         attester.require_auth();
 
-        // Verify attester is authorized
         let is_authorized = e
             .storage()
             .instance()
             .get(&DataKey::Attester(attester.clone()))
             .unwrap_or(false);
-
         if !is_authorized {
             panic!("unauthorized attester");
         }
 
-        // Get and increment attestation counter
+        nonce::consume_nonce(&e, &attester, nonce);
+
+        let dedup_key = types::AttestationDedupKey {
+            verifier: attester.clone(),
+            identity: subject.clone(),
+            attestation_data: attestation_data.clone(),
+        };
+        if e.storage().instance().has(&dedup_key) {
+            panic!("duplicate attestation");
+        }
+
         let counter_key = DataKey::AttestationCounter;
         let id: u64 = e.storage().instance().get(&counter_key).unwrap_or(0);
-
         let next_id = id.checked_add(1).expect("attestation counter overflow");
         e.storage().instance().set(&counter_key, &next_id);
 
-        // Create attestation
+        let weight = weighted_attestation::compute_weight(&e, &attester);
+        types::Attestation::validate_weight(weight);
+
         let attestation = Attestation {
             id,
-            attester: attester.clone(),
-            subject: subject.clone(),
-            attestation_data: attestation_data.clone(),
+            verifier: attester.clone(),
+            identity: subject.clone(),
             timestamp: e.ledger().timestamp(),
+            weight,
+            attestation_data: attestation_data.clone(),
             revoked: false,
         };
 
-        // Store attestation
         e.storage()
             .instance()
             .set(&DataKey::Attestation(id), &attestation);
+        e.storage().instance().set(&dedup_key, &id);
 
-        // Add to subject's attestation list
         let subject_key = DataKey::SubjectAttestations(subject.clone());
         let mut attestations: Vec<u64> = e
             .storage()
@@ -261,20 +286,25 @@ impl CredenceBond {
         attestations.push_back(id);
         e.storage().instance().set(&subject_key, &attestations);
 
-        // Emit event
+        let count_key = DataKey::SubjectAttestationCount(subject.clone());
+        let count: u32 = e.storage().instance().get(&count_key).unwrap_or(0);
+        e.storage()
+            .instance()
+            .set(&count_key, &count.saturating_add(1));
+
         e.events().publish(
             (Symbol::new(&e, "attestation_added"), subject),
-            (id, attester, attestation_data),
+            (id, attester, attestation_data, weight),
         );
 
         attestation
     }
 
-    /// Revoke an attestation (only the original attester can revoke).
-    pub fn revoke_attestation(e: Env, attester: Address, attestation_id: u64) {
+    /// Revoke an attestation (only the original attester can revoke). Requires correct nonce.
+    pub fn revoke_attestation(e: Env, attester: Address, attestation_id: u64, nonce: u64) {
         attester.require_auth();
+        nonce::consume_nonce(&e, &attester, nonce);
 
-        // Get attestation
         let key = DataKey::Attestation(attestation_id);
         let mut attestation: Attestation = e
             .storage()
@@ -282,25 +312,33 @@ impl CredenceBond {
             .get(&key)
             .unwrap_or_else(|| panic!("attestation not found"));
 
-        // Verify attester is the original attester
-        if attestation.attester != attester {
+        if attestation.verifier != attester {
             panic!("only original attester can revoke");
         }
-
-        // Check if already revoked
         if attestation.revoked {
             panic!("attestation already revoked");
         }
 
-        // Mark as revoked
         attestation.revoked = true;
         e.storage().instance().set(&key, &attestation);
 
-        // Emit event
+        let dedup_key = types::AttestationDedupKey {
+            verifier: attestation.verifier.clone(),
+            identity: attestation.identity.clone(),
+            attestation_data: attestation.attestation_data.clone(),
+        };
+        e.storage().instance().remove(&dedup_key);
+
+        let count_key = DataKey::SubjectAttestationCount(attestation.identity.clone());
+        let count: u32 = e.storage().instance().get(&count_key).unwrap_or(0);
+        e.storage()
+            .instance()
+            .set(&count_key, &count.saturating_sub(1));
+
         e.events().publish(
             (
                 Symbol::new(&e, "attestation_revoked"),
-                attestation.subject.clone(),
+                attestation.identity.clone(),
             ),
             (attestation_id, attester),
         );
@@ -320,6 +358,52 @@ impl CredenceBond {
             .instance()
             .get(&DataKey::SubjectAttestations(subject))
             .unwrap_or(Vec::new(&e))
+    }
+
+    /// Get attestation count for a subject (identity). O(1).
+    pub fn get_subject_attestation_count(e: Env, subject: Address) -> u32 {
+        e.storage()
+            .instance()
+            .get(&DataKey::SubjectAttestationCount(subject))
+            .unwrap_or(0)
+    }
+
+    /// Get current nonce for an identity (for replay prevention). Use this value in the next state-changing call.
+    pub fn get_nonce(e: Env, identity: Address) -> u64 {
+        nonce::get_nonce(&e, &identity)
+    }
+
+    /// Set attester stake (admin only). Used for weighted attestation; weight is derived from this.
+    pub fn set_attester_stake(e: Env, admin: Address, attester: Address, amount: i128) {
+        let stored_admin: Address = e
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic!("not initialized"));
+        admin.require_auth();
+        if admin != stored_admin {
+            panic!("not admin");
+        }
+        weighted_attestation::set_attester_stake(&e, &attester, amount);
+    }
+
+    /// Set weight config: multiplier_bps (e.g. 100 = 1%), max_attestation_weight. Admin only.
+    pub fn set_weight_config(e: Env, admin: Address, multiplier_bps: u32, max_weight: u32) {
+        let stored_admin: Address = e
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic!("not initialized"));
+        admin.require_auth();
+        if admin != stored_admin {
+            panic!("not admin");
+        }
+        weighted_attestation::set_weight_config(&e, multiplier_bps, max_weight);
+    }
+
+    /// Get weight config (multiplier_bps, max_weight).
+    pub fn get_weight_config(e: Env) -> (u32, u32) {
+        weighted_attestation::get_weight_config(&e)
     }
 
     /// Withdraw from bond (no penalty). Alias for withdraw_bond. Use when lock-up has ended
@@ -393,10 +477,6 @@ impl CredenceBond {
         let new_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
         tiered_bond::emit_tier_change_if_needed(&e, &bond.identity, old_tier, new_tier);
 
-        let old_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount + amount);
-        let new_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
-        tiered_bond::emit_tier_change_if_needed(&e, &bond.identity, old_tier, new_tier);
-
         e.storage().instance().set(&key, &bond);
         bond
     }
@@ -434,6 +514,7 @@ impl CredenceBond {
             penalty_bps,
         );
         early_exit_penalty::emit_penalty_event(&e, &bond.identity, amount, penalty, &treasury);
+        // In a full implementation: transfer (amount - penalty) to user, penalty to treasury.
 
         let token: Address = e
             .storage()
@@ -515,43 +596,24 @@ impl CredenceBond {
         tiered_bond::get_tier_for_amount(bond.bonded_amount)
     }
 
-    /// Slash a portion of the bond (admin only). Increases slashed_amount up to the bonded_amount.
-    /// Returns the updated bond with increased slashed_amount.
+    /// Slash a portion of the bond (admin only). Reduces the bond's value as a penalty.
+    /// Increases slashed_amount up to the bonded_amount (over-slash prevention).
+    ///
+    /// # Arguments
+    /// * `admin` - Address claiming admin authority (must be contract admin)
+    /// * `amount` - Amount to slash (i128). Will be capped at bonded_amount.
+    ///
+    /// # Returns
+    /// Updated IdentityBond with increased slashed_amount
+    ///
+    /// # Panics
+    /// - "not admin" if caller is not the contract admin
+    /// - "no bond" if no bond exists
+    ///
+    /// # Events
+    /// Emits `bond_slashed` event with (identity, slash_amount, total_slashed_amount)
     pub fn slash(e: Env, admin: Address, amount: i128) -> IdentityBond {
-        let stored_admin: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .unwrap_or_else(|| panic!("not initialized"));
-        if admin != stored_admin {
-            panic!("not admin");
-        }
-        let key = DataKey::Bond;
-        let mut bond = e
-            .storage()
-            .instance()
-            .get::<_, IdentityBond>(&key)
-            .unwrap_or_else(|| panic!("no bond"));
-
-        // Calculate new slashed amount, checking for overflow
-        let new_slashed = bond
-            .slashed_amount
-            .checked_add(amount)
-            .expect("slashing caused overflow");
-
-        // Cap slashed amount at bonded amount
-        bond.slashed_amount = if new_slashed > bond.bonded_amount {
-            bond.bonded_amount
-        } else {
-            new_slashed
-        };
-
-        e.storage().instance().set(&key, &bond);
-        e.events().publish(
-            (Symbol::new(&e, "slashed"),),
-            (bond.identity.clone(), amount, bond.slashed_amount),
-        );
-        bond
+        slashing::slash_bond(&e, &admin, amount)
     }
 
     /// Top up the bond with additional amount. Transfers USDC from bond identity to contract.
@@ -806,10 +868,16 @@ mod test_helpers;
 mod test;
 
 #[cfg(test)]
-mod test_reentrancy;
+mod test_attestation;
 
 #[cfg(test)]
-mod test_attestation;
+mod test_attestation_types;
+
+#[cfg(test)]
+mod test_weighted_attestation;
+
+#[cfg(test)]
+mod test_replay_prevention;
 
 #[cfg(test)]
 mod security;
