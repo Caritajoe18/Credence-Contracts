@@ -230,16 +230,16 @@ pub fn get_platinum_threshold(e: &Env) -> i128 {
 /// Emits `parameter_changed` event with old and new values
 pub fn set_protocol_fee_bps(e: &Env, admin: &Address, value: u32) {
     validate_admin(e, admin);
-    
+
     if value < MIN_PROTOCOL_FEE_BPS || value > MAX_PROTOCOL_FEE_BPS {
         panic!("protocol_fee_bps out of bounds");
     }
-    
+
     let old_value = get_protocol_fee_bps(e);
     e.storage()
         .instance()
         .set(&ParameterKey::ProtocolFeeBps, &value);
-    
+
     emit_parameter_changed(
         e,
         "protocol_fee_bps",
@@ -267,16 +267,16 @@ pub fn set_protocol_fee_bps(e: &Env, admin: &Address, value: u32) {
 /// Emits `parameter_changed` event with old and new values
 pub fn set_attestation_fee_bps(e: &Env, admin: &Address, value: u32) {
     validate_admin(e, admin);
-    
+
     if value < MIN_ATTESTATION_FEE_BPS || value > MAX_ATTESTATION_FEE_BPS {
         panic!("attestation_fee_bps out of bounds");
     }
-    
+
     let old_value = get_attestation_fee_bps(e);
     e.storage()
         .instance()
         .set(&ParameterKey::AttestationFeeBps, &value);
-    
+
     emit_parameter_changed(
         e,
         "attestation_fee_bps",
@@ -304,16 +304,16 @@ pub fn set_attestation_fee_bps(e: &Env, admin: &Address, value: u32) {
 /// Emits `parameter_changed` event with old and new values
 pub fn set_withdrawal_cooldown_secs(e: &Env, admin: &Address, value: u64) {
     validate_admin(e, admin);
-    
+
     if value < MIN_WITHDRAWAL_COOLDOWN_SECS || value > MAX_WITHDRAWAL_COOLDOWN_SECS {
         panic!("withdrawal_cooldown_secs out of bounds");
     }
-    
+
     let old_value = get_withdrawal_cooldown_secs(e);
     e.storage()
         .instance()
         .set(&ParameterKey::WithdrawalCooldownSecs, &value);
-    
+
     emit_parameter_changed(
         e,
         "withdrawal_cooldown_secs",
@@ -341,16 +341,16 @@ pub fn set_withdrawal_cooldown_secs(e: &Env, admin: &Address, value: u64) {
 /// Emits `parameter_changed` event with old and new values
 pub fn set_slash_cooldown_secs(e: &Env, admin: &Address, value: u64) {
     validate_admin(e, admin);
-    
+
     if value < MIN_SLASH_COOLDOWN_SECS || value > MAX_SLASH_COOLDOWN_SECS {
         panic!("slash_cooldown_secs out of bounds");
     }
-    
+
     let old_value = get_slash_cooldown_secs(e);
     e.storage()
         .instance()
         .set(&ParameterKey::SlashCooldownSecs, &value);
-    
+
     emit_parameter_changed(
         e,
         "slash_cooldown_secs",
@@ -378,16 +378,16 @@ pub fn set_slash_cooldown_secs(e: &Env, admin: &Address, value: u64) {
 /// Emits `parameter_changed` event with old and new values
 pub fn set_bronze_threshold(e: &Env, admin: &Address, value: i128) {
     validate_admin(e, admin);
-    
+
     if value < MIN_BRONZE_THRESHOLD || value > MAX_BRONZE_THRESHOLD {
         panic!("bronze_threshold out of bounds");
     }
-    
+
     let old_value = get_bronze_threshold(e);
     e.storage()
         .instance()
         .set(&ParameterKey::BronzeThreshold, &value);
-    
+
     emit_parameter_changed(e, "bronze_threshold", old_value, value, admin);
 }
 
@@ -409,16 +409,16 @@ pub fn set_bronze_threshold(e: &Env, admin: &Address, value: i128) {
 /// Emits `parameter_changed` event with old and new values
 pub fn set_silver_threshold(e: &Env, admin: &Address, value: i128) {
     validate_admin(e, admin);
-    
+
     if value < MIN_SILVER_THRESHOLD || value > MAX_SILVER_THRESHOLD {
         panic!("silver_threshold out of bounds");
     }
-    
+
     let old_value = get_silver_threshold(e);
     e.storage()
         .instance()
         .set(&ParameterKey::SilverThreshold, &value);
-    
+
     emit_parameter_changed(e, "silver_threshold", old_value, value, admin);
 }
 
@@ -440,16 +440,16 @@ pub fn set_silver_threshold(e: &Env, admin: &Address, value: i128) {
 /// Emits `parameter_changed` event with old and new values
 pub fn set_gold_threshold(e: &Env, admin: &Address, value: i128) {
     validate_admin(e, admin);
-    
+
     if value < MIN_GOLD_THRESHOLD || value > MAX_GOLD_THRESHOLD {
         panic!("gold_threshold out of bounds");
     }
-    
+
     let old_value = get_gold_threshold(e);
     e.storage()
         .instance()
         .set(&ParameterKey::GoldThreshold, &value);
-    
+
     emit_parameter_changed(e, "gold_threshold", old_value, value, admin);
 }
 
@@ -471,16 +471,16 @@ pub fn set_gold_threshold(e: &Env, admin: &Address, value: i128) {
 /// Emits `parameter_changed` event with old and new values
 pub fn set_platinum_threshold(e: &Env, admin: &Address, value: i128) {
     validate_admin(e, admin);
-    
+
     if value < MIN_PLATINUM_THRESHOLD || value > MAX_PLATINUM_THRESHOLD {
         panic!("platinum_threshold out of bounds");
     }
-    
+
     let old_value = get_platinum_threshold(e);
     e.storage()
         .instance()
         .set(&ParameterKey::PlatinumThreshold, &value);
-    
+
     emit_parameter_changed(e, "platinum_threshold", old_value, value, admin);
 }
 
