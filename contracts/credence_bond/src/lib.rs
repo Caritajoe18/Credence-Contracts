@@ -1,5 +1,10 @@
 #![no_std]
 
+mod access_control;
+
+use crate::access_control::{
+    add_verifier_role, is_verifier, remove_verifier_role, require_admin, require_verifier,
+};
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec};
 
 #[contracttype]
@@ -43,6 +48,8 @@ impl CredenceBond {
     pub fn initialize(e: Env, admin: Address) {
         admin.require_auth();
         e.storage().instance().set(&DataKey::Admin, &admin);
+        // Keep legacy admin key for shared access-control helpers.
+        e.storage().instance().set(&Symbol::new(&e, "admin"), &admin);
     }
 
     /// Register an authorized attester (only admin can call).
@@ -52,11 +59,9 @@ impl CredenceBond {
             .instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("not initialized"));
+        require_admin(&e, &admin);
         admin.require_auth();
-
-        e.storage()
-            .instance()
-            .set(&DataKey::Attester(attester.clone()), &true);
+        add_verifier_role(&e, &admin, &attester);
         e.events()
             .publish((Symbol::new(&e, "attester_registered"),), attester);
     }
@@ -68,21 +73,16 @@ impl CredenceBond {
             .instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("not initialized"));
+        require_admin(&e, &admin);
         admin.require_auth();
-
-        e.storage()
-            .instance()
-            .remove(&DataKey::Attester(attester.clone()));
+        remove_verifier_role(&e, &admin, &attester);
         e.events()
             .publish((Symbol::new(&e, "attester_unregistered"),), attester);
     }
 
     /// Check if an address is an authorized attester.
     pub fn is_attester(e: Env, attester: Address) -> bool {
-        e.storage()
-            .instance()
-            .get(&DataKey::Attester(attester))
-            .unwrap_or(false)
+        is_verifier(&e, &attester)
     }
 
     /// Create or top-up a bond for an identity. In a full implementation this would
@@ -124,17 +124,7 @@ impl CredenceBond {
         attestation_data: String,
     ) -> Attestation {
         attester.require_auth();
-
-        // Verify attester is authorized
-        let is_authorized = e
-            .storage()
-            .instance()
-            .get(&DataKey::Attester(attester.clone()))
-            .unwrap_or(false);
-
-        if !is_authorized {
-            panic!("unauthorized attester");
-        }
+        require_verifier(&e, &attester);
 
         // Get and increment attestation counter
         let counter_key = DataKey::AttestationCounter;
@@ -345,3 +335,6 @@ mod test_attestation;
 
 #[cfg(test)]
 mod security;
+
+#[cfg(test)]
+mod test_access_control;
