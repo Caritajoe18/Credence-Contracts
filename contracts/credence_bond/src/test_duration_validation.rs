@@ -148,7 +148,13 @@ fn test_create_bond_below_min_duration_rejected() {
     e.mock_all_auths();
     let client = setup(&e);
     let identity = Address::generate(&e);
-    client.create_bond(&identity, &1000_i128, &(MIN_BOND_DURATION - 1), &false, &0_u64);
+    client.create_bond(
+        &identity,
+        &1000_i128,
+        &(MIN_BOND_DURATION - 1),
+        &false,
+        &0_u64,
+    );
 }
 
 /// Bond creation with duration above maximum must be rejected.
@@ -159,7 +165,13 @@ fn test_create_bond_above_max_duration_rejected() {
     e.mock_all_auths();
     let client = setup(&e);
     let identity = Address::generate(&e);
-    client.create_bond(&identity, &1000_i128, &(MAX_BOND_DURATION + 1), &false, &0_u64);
+    client.create_bond(
+        &identity,
+        &1000_i128,
+        &(MAX_BOND_DURATION + 1),
+        &false,
+        &0_u64,
+    );
 }
 
 /// Rolling bond creation with valid duration succeeds.
