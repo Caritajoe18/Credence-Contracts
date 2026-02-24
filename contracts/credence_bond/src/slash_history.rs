@@ -27,11 +27,7 @@ pub fn append_slash_history(
 ) {
     let count_key = SlashStorageKey::SlashCount(identity.clone());
 
-    let mut count: u32 = e
-        .storage()
-        .persistent()
-        .get(&count_key)
-        .unwrap_or(0);
+    let mut count: u32 = e.storage().persistent().get(&count_key).unwrap_or(0);
 
     let record = SlashRecord {
         identity: identity.clone(),
