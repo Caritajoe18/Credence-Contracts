@@ -6,6 +6,7 @@
 #![cfg(test)]
 
 use crate::cooldown;
+use crate::test_helpers;
 use crate::{CredenceBond, CredenceBondClient};
 use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{Address, Env};
@@ -16,6 +17,12 @@ fn setup(e: &Env) -> (CredenceBondClient<'_>, Address) {
     let admin = Address::generate(e);
     client.initialize(&admin);
     (client, admin)
+}
+
+/// Setup with token for tests that call create_bond.
+fn setup_with_token(e: &Env) -> (CredenceBondClient<'_>, Address, Address) {
+    let (client, admin, identity, _token, _bond_id) = test_helpers::setup_with_token(e);
+    (client, admin, identity)
 }
 
 // ---------------------------------------------------------------
@@ -77,9 +84,7 @@ fn test_request_cooldown_withdrawal() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 5000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &3600);
 
@@ -94,9 +99,7 @@ fn test_request_cooldown_withdrawal_full_amount() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
 
@@ -109,9 +112,7 @@ fn test_request_cooldown_withdrawal_full_amount() {
 fn test_request_cooldown_zero_amount() {
     let e = Env::default();
     e.mock_all_auths();
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
 
@@ -123,9 +124,7 @@ fn test_request_cooldown_zero_amount() {
 fn test_request_cooldown_negative_amount() {
     let e = Env::default();
     e.mock_all_auths();
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
 
@@ -137,9 +136,7 @@ fn test_request_cooldown_negative_amount() {
 fn test_request_cooldown_exceeds_balance() {
     let e = Env::default();
     e.mock_all_auths();
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
 
@@ -151,9 +148,7 @@ fn test_request_cooldown_exceeds_balance() {
 fn test_request_cooldown_exceeds_available_after_slash() {
     let e = Env::default();
     e.mock_all_auths();
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.slash(&admin, &300);
     client.set_cooldown_period(&admin, &100);
@@ -168,9 +163,7 @@ fn test_request_cooldown_duplicate() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
 
@@ -195,9 +188,7 @@ fn test_request_cooldown_no_bond() {
 fn test_request_cooldown_wrong_identity() {
     let e = Env::default();
     e.mock_all_auths();
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
 
@@ -214,9 +205,7 @@ fn test_execute_cooldown_withdrawal_after_period() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
     client.request_cooldown_withdrawal(&identity, &400);
@@ -232,9 +221,7 @@ fn test_execute_cooldown_withdrawal_exact_boundary() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
     client.request_cooldown_withdrawal(&identity, &250);
@@ -250,9 +237,7 @@ fn test_execute_cooldown_removes_request() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
     client.request_cooldown_withdrawal(&identity, &400);
@@ -272,9 +257,7 @@ fn test_execute_cooldown_with_zero_period() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, _admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, _admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     // Cooldown period defaults to 0 (instant)
     client.request_cooldown_withdrawal(&identity, &300);
@@ -290,9 +273,7 @@ fn test_execute_cooldown_too_early() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
     client.request_cooldown_withdrawal(&identity, &500);
@@ -307,9 +288,7 @@ fn test_execute_cooldown_too_early() {
 fn test_execute_cooldown_no_request() {
     let e = Env::default();
     e.mock_all_auths();
-    let (client, _admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, _admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.execute_cooldown_withdrawal(&identity);
 }
@@ -320,9 +299,7 @@ fn test_execute_cooldown_balance_slashed_during_cooldown() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
     client.request_cooldown_withdrawal(&identity, &800);
@@ -344,9 +321,7 @@ fn test_cancel_cooldown() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
     client.request_cooldown_withdrawal(&identity, &500);
@@ -375,9 +350,7 @@ fn test_execute_after_cancel() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
     client.request_cooldown_withdrawal(&identity, &500);
@@ -396,9 +369,7 @@ fn test_get_cooldown_request() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 2000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
     client.request_cooldown_withdrawal(&identity, &750);
@@ -491,9 +462,7 @@ fn test_full_cooldown_lifecycle() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &5000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &3600);
 
@@ -524,9 +493,7 @@ fn test_cancel_and_rerequest_lifecycle() {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().with_mut(|li| li.timestamp = 1000);
-    let (client, admin) = setup(&e);
-
-    let identity = Address::generate(&e);
+    let (client, admin, identity) = setup_with_token(&e);
     client.create_bond(&identity, &1000, &86400, &false, &0);
     client.set_cooldown_period(&admin, &100);
 
