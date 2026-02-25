@@ -973,6 +973,8 @@ mod security;
 
 #[cfg(test)]
 mod test_duration_validation;
+
+#[cfg(test)]
 mod test_access_control;
 
 #[cfg(test)]
