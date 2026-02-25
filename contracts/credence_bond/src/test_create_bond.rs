@@ -6,7 +6,7 @@ use soroban_sdk::Env;
 #[test]
 fn test_create_bond_success() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -29,7 +29,7 @@ fn test_create_bond_success() {
 #[test]
 fn test_create_bond_zero_amount() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -46,7 +46,7 @@ fn test_create_bond_zero_amount() {
 #[test]
 fn test_create_bond_negative_amount() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -62,7 +62,7 @@ fn test_create_bond_negative_amount() {
 #[test]
 fn test_create_bond_max_amount() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -79,7 +79,7 @@ fn test_create_bond_max_amount() {
 #[test]
 fn test_create_bond_zero_duration() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -96,7 +96,7 @@ fn test_create_bond_zero_duration() {
 #[test]
 fn test_create_bond_max_duration() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -118,7 +118,7 @@ fn test_create_bond_duration_overflow() {
         li.timestamp = u64::MAX - 1000; // Set timestamp close to max
     });
     
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -133,7 +133,7 @@ fn test_create_bond_duration_overflow() {
 #[test]
 fn test_create_bond_duplicate() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -159,7 +159,7 @@ fn test_create_bond_duplicate() {
 #[test]
 fn test_create_bond_different_identities() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -181,7 +181,7 @@ fn test_create_bond_different_identities() {
 #[test]
 fn test_create_bond_field_initialization() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -201,7 +201,7 @@ fn test_create_bond_field_initialization() {
 #[test]
 fn test_create_bond_storage_persistence() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -223,7 +223,7 @@ fn test_create_bond_storage_persistence() {
 #[test]
 fn test_create_bond_min_positive_amount() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -240,7 +240,7 @@ fn test_create_bond_min_positive_amount() {
 #[test]
 fn test_create_bond_usdc_amount() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -257,7 +257,7 @@ fn test_create_bond_usdc_amount() {
 #[test]
 fn test_create_bond_timestamp() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
@@ -275,7 +275,7 @@ fn test_create_bond_timestamp() {
 #[test]
 fn test_create_bond_sequential() {
     let e = Env::default();
-    let contract_id = e.register_contract(None, CredenceBond);
+    let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);

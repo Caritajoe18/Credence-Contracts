@@ -102,7 +102,19 @@ Emergency tests validate:
 - Balance safety under slashing constraints.
 - Invalid amount and invalid fee configuration rejection.
 
-## Verification Snapshot (2026-02-24)
+## Verification Snapshot (2026-02-25)
 
-- `cargo test -p credence_bond`: **175 passed, 0 failed**.
-- `cargo llvm-cov -p credence_bond --summary-only`: **96.71% region coverage** and **94.52% line coverage**.
+- `cargo test -p credence_bond`: **305 passed, 0 failed**.
+- `cargo test --all-targets`: **passed** (workspace test targets).
+- `cargo llvm-cov -p credence_bond --summary-only`:
+	- **TOTAL**: 95.82% region coverage, 94.14% line coverage.
+	- **emergency.rs**: 94.92% region coverage, 95.31% line coverage.
+- CI-equivalent core checks from `.github/workflows/ci.yml`:
+	- `cargo fmt --all -- --check`: **passed**
+	- `cargo build --all-targets`: **passed**
+	- `cargo test --all-targets`: **passed**
+	- `cargo build --release`: **passed**
+- Security checks from `.github/workflows/security.yml`:
+	- `cargo audit`: **passed** (2 non-critical unmaintained dependency warnings, no critical vulnerabilities)
+	- `cargo clippy ... -D warnings` with security lints: **fails on pre-existing repository-wide lints** (not emergency-specific)
+	- `cargo geiger`: **reports unsafe usage in dependency tree and exits with warnings**

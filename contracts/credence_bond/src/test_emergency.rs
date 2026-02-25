@@ -2,21 +2,15 @@
 //! Covers governance approvals, emergency mode gating, fee application,
 //! immutable audit trail, and crisis-only behavior.
 
-use crate::{CredenceBond, CredenceBondClient};
+use crate::test_helpers;
+use crate::CredenceBondClient;
 use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{Address, Env, Symbol};
 
 fn setup(e: &Env) -> (CredenceBondClient<'_>, Address, Address, Address, Address) {
-    e.mock_all_auths();
-    let contract_id = e.register(CredenceBond, ());
-    let client = CredenceBondClient::new(e, &contract_id);
-
-    let admin = Address::generate(e);
+    let (client, admin, identity, ..) = test_helpers::setup_with_token(e);
     let governance = Address::generate(e);
     let treasury = Address::generate(e);
-    let identity = Address::generate(e);
-
-    client.initialize(&admin);
     (client, admin, governance, treasury, identity)
 }
 
@@ -56,7 +50,7 @@ fn test_emergency_withdraw_multiple_records_increment_ids() {
     let (client, admin, governance, treasury, identity) = setup(&e);
 
     client.set_emergency_config(&admin, &governance, &treasury, &100, &true);
-    client.create_bond(&identity, &1000_i128, &1000_u64, &false, &0_u64);
+    client.create_bond(&identity, &1000_i128, &86_400_u64, &false, &0_u64);
 
     client.emergency_withdraw(&admin, &governance, &100_i128, &Symbol::new(&e, "ops1"));
     e.ledger().with_mut(|li| li.timestamp = 101);

@@ -164,11 +164,11 @@ fn test_u64_max_duration() {
     client.initialize(&admin);
 
     let identity = Address::generate(&e);
-    // Test creating bond with maximum u64 duration
-    let bond = client.create_bond(&identity, &1000, &u64::MAX, &false, &0_u64);
-    let bond = client.create_bond(&identity, &1000, &u64::MAX, &false, &0_u64);
+    // Test creating bond with maximum allowed duration (365 days)
+    let max_duration = 31_536_000_u64;
+    let bond = client.create_bond(&identity, &1000, &max_duration, &false, &0_u64);
 
-    assert_eq!(bond.bond_duration, u64::MAX);
+    assert_eq!(bond.bond_duration, max_duration);
 }
 
 #[test]
@@ -183,12 +183,11 @@ fn test_u64_overflow_on_duration_extension() {
     client.initialize(&admin);
 
     let identity = Address::generate(&e);
-    // Create bond with max - 1000 duration
-    client.create_bond(&identity, &1000, &(u64::MAX - 1000), &false, &0_u64);
-    client.create_bond(&identity, &1000, &(u64::MAX - 1000), &false, &0_u64);
+    // Create bond with valid duration
+    client.create_bond(&identity, &1000, &86400_u64, &false, &0_u64);
 
-    // Attempt to extend by 2000, which should overflow
-    client.extend_duration(&2000);
+    // Attempt to extend by u64::MAX, which should overflow
+    client.extend_duration(&u64::MAX);
 }
 
 #[test]
@@ -198,7 +197,7 @@ fn test_u64_overflow_on_end_timestamp() {
     e.mock_all_auths();
     e.ledger().with_mut(|li| {
         // Set current timestamp to a very high value
-        li.timestamp = u64::MAX - 1000;
+        li.timestamp = u64::MAX - 86400;
     });
 
     let contract_id = e.register(CredenceBond, ());
@@ -208,10 +207,9 @@ fn test_u64_overflow_on_end_timestamp() {
     client.initialize(&admin);
 
     let identity = Address::generate(&e);
-    // Create bond with duration that would cause end timestamp to overflow
-    // bond_start will be u64::MAX - 1000, adding 2000 duration will overflow
-    client.create_bond(&identity, &1000, &2000, &false, &0_u64);
-    client.create_bond(&identity, &1000, &2000, &false, &0_u64);
+    // Create bond with valid duration that causes end timestamp to overflow
+    // bond_start will be u64::MAX - 86400, adding 86401 exceeds u64::MAX
+    client.create_bond(&identity, &1000, &86401_u64, &false, &0_u64);
 }
 
 #[test]
@@ -225,25 +223,25 @@ fn test_u64_large_duration_extension() {
     client.initialize(&admin);
 
     let identity = Address::generate(&e);
-    let duration = u64::MAX / 2;
+    let duration = 86400_u64;
 
-    // Create bond with large duration
+    // Create bond with valid duration
     let bond = client.create_bond(&identity, &1000, &duration, &false, &0_u64);
     let bond = client.create_bond(&identity, &1000, &duration, &false, &0_u64);
     assert_eq!(bond.bond_duration, duration);
 
-    // Extend with another large duration (should succeed as sum < u64::MAX)
-    let bond = client.extend_duration(&(duration / 2));
-    assert_eq!(bond.bond_duration, duration + (duration / 2));
+    // Extend with another duration (should succeed as sum doesn't overflow)
+    let bond = client.extend_duration(&86400_u64);
+    assert_eq!(bond.bond_duration, duration + 86400);
 }
 
 #[test]
 fn test_timestamp_boundary_conditions() {
     let e = Env::default();
     e.mock_all_auths();
-    // Set timestamp to near-max value
+    // Set timestamp to near-max value but with enough room for a valid duration
     e.ledger().with_mut(|li| {
-        li.timestamp = u64::MAX - 10000;
+        li.timestamp = u64::MAX - 31_536_000;
     });
 
     let contract_id = e.register(CredenceBond, ());
@@ -253,12 +251,11 @@ fn test_timestamp_boundary_conditions() {
     client.initialize(&admin);
 
     let identity = Address::generate(&e);
-    // Create bond with safe duration
-    let bond = client.create_bond(&identity, &1000, &5000, &false, &0_u64);
-    let bond = client.create_bond(&identity, &1000, &5000, &false, &0_u64);
+    // Create bond with minimum valid duration that still fits within timestamp range
+    let bond = client.create_bond(&identity, &1000, &86400_u64, &false, &0_u64);
 
-    assert_eq!(bond.bond_duration, 5000);
-    assert!(bond.bond_start >= u64::MAX - 10000);
+    assert_eq!(bond.bond_duration, 86400);
+    assert!(bond.bond_start >= u64::MAX - 31_536_000);
 }
 
 // ============================================================================
