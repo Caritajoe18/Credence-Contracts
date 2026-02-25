@@ -147,7 +147,7 @@ impl CredenceBond {
     }
 
     pub fn register_attester(e: Env, attester: Address) {
-        let _admin: Address = e
+        let admin: Address = e
             .storage()
             .instance()
             .get(&DataKey::Admin)
@@ -163,7 +163,7 @@ impl CredenceBond {
     }
 
     pub fn unregister_attester(e: Env, attester: Address) {
-        let _admin: Address = e
+        let admin: Address = e
             .storage()
             .instance()
             .get(&DataKey::Admin)
@@ -710,42 +710,6 @@ impl CredenceBond {
             .set(&Self::callback_key(&e), &callback);
     }
 
-    pub fn withdraw_bond(e: Env, identity: Address) -> i128 {
-        let key = DataKey::Bond;
-        Self::with_reentrancy_guard(&e, || {
-            let mut bond: IdentityBond = e
-                .storage()
-                .instance()
-                .get(&key)
-                .unwrap_or_else(|| panic!("no bond"));
-            if bond.identity != identity {
-                panic!("not bond identity");
-            }
-
-            let amount = bond
-                .bonded_amount
-                .checked_sub(bond.slashed_amount)
-                .expect("slashed amount exceeds bonded amount");
-            bond.bonded_amount = 0;
-            bond.active = false;
-            e.storage().instance().set(&key, &bond);
-            amount
-        })
-    }
-
-    pub fn slash_bond(e: Env, admin: Address, amount: i128) -> i128 {
-        Self::with_reentrancy_guard(&e, || {
-            let before = Self::get_identity_state(e.clone()).slashed_amount;
-            let after = slashing::slash_bond(&e, &admin, amount).slashed_amount;
-            after.checked_sub(before).expect("slashing delta underflow")
-        })
-    pub fn is_locked(e: Env) -> bool {
-        e.storage()
-            .instance()
-            .get(&Self::lock_key(&e))
-            .unwrap_or(false)
-    }
-
     pub fn get_slash_proposal(
         e: Env,
         proposal_id: u64,
@@ -909,6 +873,8 @@ impl CredenceBond {
     /// Set platinum tier threshold. Governance-only.
     pub fn set_platinum_threshold(e: Env, admin: Address, value: i128) {
         parameters::set_platinum_threshold(&e, &admin, value)
+    }
+
     /// Withdraw the full bonded amount back to the identity (callback-based, for reentrancy tests).
     /// Uses a reentrancy guard to prevent re-entrance during external calls.
     pub fn withdraw_bond_full(e: Env, identity: Address) -> i128 {
@@ -1073,7 +1039,9 @@ mod test_weighted_attestation;
 #[cfg(test)]
 mod test_replay_prevention;
 
+#[cfg(test)]
 mod test_governance_approval;
+
 #[cfg(test)]
 mod test_parameters;
 
