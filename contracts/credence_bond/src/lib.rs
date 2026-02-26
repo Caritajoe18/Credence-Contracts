@@ -68,6 +68,7 @@ pub struct CooldownRequest {
     pub amount: i128,
     pub requested_at: u64,
 }
+
 #[contracttype]
 pub enum DataKey {
     Admin,
