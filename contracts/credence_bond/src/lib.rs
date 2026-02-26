@@ -109,6 +109,9 @@ pub struct CredenceBond;
 #[contractimpl]
 impl CredenceBond {
     fn acquire_lock(e: &Env) {
+        if Self::check_lock(e) {
+            panic!("reentrancy detected");
+        }
         e.storage().instance().set(&Self::lock_key(e), &true);
     }
 
